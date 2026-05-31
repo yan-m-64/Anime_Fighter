@@ -3,8 +3,9 @@
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
 const GROUND_Y = 580;
-const GRAVITY = 0.6;
+const GRAVITY = 1800;
 const JUMP_FORCE = -16;
+const JUMP_VY = -700;
 const MOVE_SPEED = 4.5;
 const MAX_HEALTH = 100;
 const MAX_CHAKRA = 100;
@@ -313,12 +314,6 @@ const btnMenuFromPause = document.getElementById('btnMenuFromPause');
 const allScreens = document.querySelectorAll('.screen');
 
 // === Core actions ===
-
-const ROUND_DURATION = 99;
-const GRAVITY = 1800;
-const JUMP_VY = -700;
-
-let lastTimestamp = 0;
 
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -684,8 +679,8 @@ function endMatch(winner) {
 }
 
 function spawnVictoryParticles() {
-    if (!victoryParticlesEl) return;
-    victoryParticlesEl.innerHTML = '';
+    if (!victoryParticles) return;
+    victoryParticles.innerHTML = '';
     const colors = ['#ff7400','#ffaa00','#00cfff','#ffffff','#cc00ff'];
     for (let i = 0; i < 28; i++) {
         const dot = document.createElement('div');
@@ -694,7 +689,7 @@ function spawnVictoryParticles() {
             `background:${colors[Math.floor(Math.random() * colors.length)]};` +
             `left:${Math.random() * 100}%;top:${100 + Math.random() * 20}%;` +
             `animation:floatUp ${0.8 + Math.random() * 1.2}s ease-out ${Math.random() * 0.6}s forwards;opacity:0;`;
-        victoryParticlesEl.appendChild(dot);
+        victoryParticles.appendChild(dot);
     }
 }
 
@@ -716,7 +711,8 @@ function spawnParticles(x, y, type) {
             vy: Math.sin(angle) * spd - 70,
             life: cfg.life, maxLife: cfg.life,
             color: cfg.colors[Math.floor(Math.random() * cfg.colors.length)],
-            size: cfg.sz * (0.6 + Math.random() * 0.8)
+            size: cfg.sz * (0.6 + Math.random() * 0.8),
+            alpha: 1
         });
     }
 }
@@ -728,6 +724,7 @@ function updateParticles(delta) {
         p.y += p.vy * delta;
         p.vy += 380 * delta;
         p.life -= delta;
+        p.alpha = Math.max(0, p.life / p.maxLife);
         if (p.life <= 0) particles.splice(i, 1);
     }
 }
@@ -736,36 +733,37 @@ function renderFrame() {
     if (!gameCanvas) return;
     const ctx = gameCanvas.getContext('2d');
     const cw = gameCanvas.width, ch = gameCanvas.height;
-    const map = maps[selectedMap] || maps[0];
+    const map = maps[selectedMap] || maps[0] || MAP_LIST[0];
     const groundY = ch - 22;
 
-    ctx.fillStyle = map.bgColor || '#0d0d1a';
+    ctx.fillStyle = (map && map.bgColor) || '#0d0d1a';
     ctx.fillRect(0, 0, cw, ch);
 
-    if (map.layers) {
+    if (map && map.layers) {
         map.layers.forEach(layer => {
-            const offset = (Date.now() * layer.speed * 0.0006) % cw;
+            if (typeof layer === 'string') return;
+            const offset = (Date.now() * (layer.speed || 0.5) * 0.0006) % cw;
             ctx.globalAlpha = layer.alpha || 0.6;
-            ctx.fillStyle = layer.color;
-            ctx.fillRect(-offset, ch * layer.yRatio, cw + offset, ch * layer.hRatio);
-            ctx.fillRect(cw - offset, ch * layer.yRatio, cw, ch * layer.hRatio);
+            ctx.fillStyle = layer.color || '#333';
+            ctx.fillRect(-offset, ch * (layer.yRatio || 0.3), cw + offset, ch * (layer.hRatio || 0.2));
+            ctx.fillRect(cw - offset, ch * (layer.yRatio || 0.3), cw, ch * (layer.hRatio || 0.2));
         });
         ctx.globalAlpha = 1;
     }
 
-    ctx.fillStyle = map.groundColor || '#1a0800';
+    ctx.fillStyle = (map && map.groundColor) || '#1a0800';
     ctx.fillRect(0, groundY, cw, ch - groundY);
-    ctx.fillStyle = map.groundLine || '#ff7400';
+    ctx.fillStyle = (map && map.accentColor) || '#ff7400';
     ctx.fillRect(0, groundY, cw, 3);
 
     drawFighterSprite(ctx, p1, ch);
     drawFighterSprite(ctx, p2, ch);
 
     particles.forEach(p => {
-        ctx.globalAlpha = Math.max(0, p.life / p.maxLife) * 0.9;
+        ctx.globalAlpha = Math.max(0, p.alpha || (p.life / p.maxLife)) * 0.9;
         ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, Math.max(0.5, p.size), 0, Math.PI * 2);
         ctx.fill();
     });
     ctx.globalAlpha = 1;
@@ -909,126 +907,31 @@ function playSound(name) {
     } catch (_) {}
 }
 
-// === Render ===
-
-function updateHUD() {
-  const p1Pct = Math.max(0, Math.min(100, p1.health));
-  const p2Pct = Math.max(0, Math.min(100, p2.health));
-
-  healthFillP1.style.width = p1Pct + '%';
-  healthFillP2.style.width = p2Pct + '%';
-
-  // Ghost bars drain toward current health
-  const g1 = parseFloat(healthGhostP1.style.width) || 100;
-  healthGhostP1.style.width = (g1 > p1Pct ? Math.max(p1Pct, g1 - 0.28) : p1Pct) + '%';
-  const g2 = parseFloat(healthGhostP2.style.width) || 100;
-  healthGhostP2.style.width = (g2 > p2Pct ? Math.max(p2Pct, g2 - 0.28) : p2Pct) + '%';
-
-  healthFillP1.style.background = healthGradient(p1Pct);
-  healthFillP2.style.background = healthGradient(p2Pct);
-
-  chakraFillP1.style.width = Math.max(0, Math.min(100, p1.chakra)) + '%';
-  chakraFillP2.style.width = Math.max(0, Math.min(100, p2.chakra)) + '%';
-
-  const secs = Math.max(0, Math.ceil(roundTimer));
-  timerEl.textContent = secs;
-  timerEl.style.color = secs <= 10 ? '#ff1a1a' : '#f0eeff';
-
-  roundNumEl.textContent = 'ROUND ' + roundNum;
-
-  pip1_1.className = 'pip' + (p1.wins >= 1 ? ' pip-won' : '');
-  pip1_2.className = 'pip' + (p1.wins >= 2 ? ' pip-won' : '');
-  pip2_1.className = 'pip' + (p2.wins >= 1 ? ' pip-won' : '');
-  pip2_2.className = 'pip' + (p2.wins >= 2 ? ' pip-won' : '');
-}
-
 function healthGradient(pct) {
   if (pct > 60) return 'linear-gradient(90deg,#2ecc40,#7fff00)';
   if (pct > 30) return 'linear-gradient(90deg,#ff851b,#ffaa00)';
   return 'linear-gradient(90deg,#ff1a1a,#ff4444)';
 }
 
-function updateParticles(delta) {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx * delta * 0.06;
-    p.y += p.vy * delta * 0.06;
-    p.vy += 0.22;
-    p.life -= delta;
-    p.alpha = Math.max(0, p.life / p.maxLife);
-    if (p.life <= 0) particles.splice(i, 1);
-  }
-}
-
-function renderFrame(ctx) {
-  const W = gameCanvas.width;
-  const H = gameCanvas.height;
-  const groundY = H - 80;
-
-  ctx.clearRect(0, 0, W, H);
-  drawBackground(ctx, W, H, groundY);
-  drawFighterShadow(ctx, p1, groundY);
-  drawFighterShadow(ctx, p2, groundY);
-  drawFighter(ctx, p1, false);
-  drawFighter(ctx, p2, true);
-  drawParticles(ctx);
-}
-
 function drawBackground(ctx, W, H, groundY) {
-  const map = MAPS[selectedMap] || MAPS[0];
+  const map = (typeof maps !== 'undefined' && maps[selectedMap]) ||
+              MAP_LIST[selectedMap] || MAP_LIST[0];
 
-  const skyGrd = ctx.createLinearGradient(0, 0, 0, groundY);
-  skyGrd.addColorStop(0, map.skyTop);
-  skyGrd.addColorStop(1, map.skyBottom);
-  ctx.fillStyle = skyGrd;
-  ctx.fillRect(0, 0, W, groundY);
+  ctx.fillStyle = map.bgColor || '#0d0d1a';
+  ctx.fillRect(0, 0, W, H);
 
-  const floorGrd = ctx.createLinearGradient(0, groundY, 0, H);
-  floorGrd.addColorStop(0, map.groundTop);
-  floorGrd.addColorStop(1, map.groundBottom);
-  ctx.fillStyle = floorGrd;
+  ctx.fillStyle = map.groundColor || '#1a0800';
   ctx.fillRect(0, groundY, W, H - groundY);
-
-  // Parallax orb layer
-  const t = Date.now() * 0.00038;
-  ctx.save();
-  for (let i = 0; i < map.orbData.length; i++) {
-    const o = map.orbData[i];
-    const ox = ((o.x * W + t * o.speed * W) % W + W) % W;
-    const oy = o.y * groundY;
-    const grd = ctx.createRadialGradient(ox, oy, 0, ox, oy, o.r);
-    grd.addColorStop(0, o.color + 'bb');
-    grd.addColorStop(1, o.color + '00');
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.arc(ox, oy, o.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // Silhouette mid-layer
-  ctx.save();
-  ctx.fillStyle = map.midColor;
-  for (const s of map.midShapes) {
-    ctx.fillRect(s.x * W, s.y * H, s.w * W, s.h * H);
-  }
-  ctx.restore();
-
-  // Ground edge glow
-  ctx.save();
-  const edgeGrd = ctx.createLinearGradient(0, groundY - 3, 0, groundY + 10);
-  edgeGrd.addColorStop(0, map.glowColor + 'cc');
-  edgeGrd.addColorStop(1, map.glowColor + '00');
-  ctx.fillStyle = edgeGrd;
-  ctx.fillRect(0, groundY - 2, W, 12);
-  ctx.restore();
+  ctx.fillStyle = map.accentColor || '#ff7400';
+  ctx.fillRect(0, groundY, W, 3);
 }
 
 function drawFighterShadow(ctx, fighter, groundY) {
-  const cx = fighter.x + fighter.width * 0.5;
-  const airDist = Math.abs(fighter.y + fighter.height - groundY);
+  const cx = fighter.x + (fighter.width || fighter.hitbox.w) * 0.5;
+  const fh = fighter.height || fighter.hitbox.h;
+  const airDist = Math.abs(fighter.y + fh - groundY);
   const scale = Math.max(0.15, 1 - airDist / 220);
-  const sw = fighter.width * 0.52 * scale;
+  const sw = (fighter.width || fighter.hitbox.w) * 0.52 * scale;
   const sh = 7 * scale;
   const grd = ctx.createRadialGradient(cx, groundY, 0, cx, groundY, sw);
   grd.addColorStop(0, 'rgba(0,0,0,0.5)');
@@ -1039,109 +942,9 @@ function drawFighterShadow(ctx, fighter, groundY) {
   ctx.fill();
 }
 
-function drawFighter(ctx, fighter, isP2) {
-  const char = ROSTER[fighter.charIndex] || ROSTER[0];
-  const x = Math.round(fighter.x);
-  const y = Math.round(fighter.y);
-  const w = fighter.width;
-  const h = fighter.height;
-
-  ctx.save();
-
-  if (!fighter.facingRight) {
-    ctx.translate(x + w * 0.5, y + h * 0.5);
-    ctx.scale(-1, 1);
-    ctx.translate(-(x + w * 0.5), -(y + h * 0.5));
-  }
-
-  if (fighter.state === 'hurt') {
-    ctx.globalAlpha = 0.4 + 0.6 * ((Math.sin(Date.now() * 0.09) + 1) * 0.5);
-  }
-
-  const body   = char.color;
-  const accent = char.accent;
-  const skin   = char.skinColor || '#f5c2a0';
-  const hair   = char.hairColor || '#1a1a1a';
-
-  if (fighter.state === 'special') drawChakraAura(ctx, x, y, w, h, accent);
-
-  // Legs
-  ctx.fillStyle = body;
-  ctx.fillRect(x + w * 0.22, y + h * 0.62, w * 0.2,  h * 0.38);
-  ctx.fillRect(x + w * 0.56, y + h * 0.62, w * 0.2,  h * 0.38);
-  ctx.fillStyle = accent;
-  ctx.fillRect(x + w * 0.22, y + h * 0.85, w * 0.2,  h * 0.055);
-  ctx.fillRect(x + w * 0.56, y + h * 0.85, w * 0.2,  h * 0.055);
-
-  // Torso
-  ctx.fillStyle = body;
-  ctx.fillRect(x + w * 0.18, y + h * 0.32, w * 0.64, h * 0.32);
-  ctx.fillStyle = accent;
-  ctx.fillRect(x + w * 0.37, y + h * 0.32, w * 0.07, h * 0.32);
-
-  // Arms — pose depends on state
-  ctx.fillStyle = skin;
-  if (fighter.state === 'attack') {
-    ctx.fillRect(x + w * 0.82, y + h * 0.33, w * 0.34, h * 0.11);
-    ctx.fillRect(x + w * 0.04, y + h * 0.38, w * 0.15, h * 0.22);
-    ctx.beginPath();
-    ctx.arc(x + w * 1.16, y + h * 0.385, w * 0.085, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (fighter.state === 'special') {
-    ctx.fillRect(x + w * 0.82, y + h * 0.30, w * 0.28, h * 0.10);
-    ctx.fillRect(x + w * 0.82, y + h * 0.44, w * 0.28, h * 0.10);
-  } else if (fighter.state === 'block') {
-    ctx.fillRect(x + w * 0.72, y + h * 0.22, w * 0.14, h * 0.32);
-    ctx.fillRect(x + w * 0.72, y + h * 0.22, w * 0.30, h * 0.11);
-    ctx.fillRect(x + w * 0.05, y + h * 0.38, w * 0.15, h * 0.18);
-  } else if (fighter.state === 'jump') {
-    ctx.fillRect(x - w * 0.10, y + h * 0.36, w * 0.22, h * 0.10);
-    ctx.fillRect(x + w * 0.88, y + h * 0.36, w * 0.22, h * 0.10);
-  } else {
-    const swing = fighter.state === 'run' ? Math.sin(Date.now() * 0.016) * 0.09 : 0;
-    ctx.fillRect(x + w * 0.82, y + h * (0.34 + swing),  w * 0.14, h * 0.24);
-    ctx.fillRect(x + w * 0.04, y + h * (0.34 - swing),  w * 0.14, h * 0.24);
-  }
-
-  // Head
-  ctx.fillStyle = skin;
-  ctx.beginPath();
-  ctx.arc(x + w * 0.5, y + h * 0.19, w * 0.21, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = hair;
-  drawHairStyle(ctx, char.hairStyle, x, y, w, h);
-
-  // Eye
-  ctx.fillStyle = accent;
-  ctx.beginPath();
-  ctx.arc(x + w * 0.60, y + h * 0.17, w * 0.053, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#0a0a0a';
-  ctx.beginPath();
-  ctx.arc(x + w * 0.60, y + h * 0.17, w * 0.027, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.beginPath();
-  ctx.arc(x + w * 0.614, y + h * 0.163, w * 0.01, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Ink outlines
-  ctx.strokeStyle = '#111';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(x + w * 0.18, y + h * 0.32, w * 0.64, h * 0.32);
-  ctx.beginPath();
-  ctx.arc(x + w * 0.5, y + h * 0.19, w * 0.21, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.globalAlpha = 1;
-  ctx.restore();
-}
-
 function drawHairStyle(ctx, style, x, y, w, h) {
   const s = (style || 0) % 4;
   if (s === 0) {
-    // Spiky — Naruto
     ctx.fillRect(x + w * 0.29, y + h * 0.02, w * 0.43, h * 0.10);
     for (let i = 0; i < 5; i++) {
       const bx = x + w * (0.31 + i * 0.10);
@@ -1153,17 +956,14 @@ function drawHairStyle(ctx, style, x, y, w, h) {
       ctx.fill();
     }
   } else if (s === 1) {
-    // Long — Sasuke
     ctx.fillRect(x + w * 0.29, y - h * 0.055, w * 0.42, h * 0.145);
     ctx.fillRect(x + w * 0.63, y + h * 0.04, w * 0.13, h * 0.30);
   } else if (s === 2) {
-    // Short wild
     ctx.beginPath();
     ctx.arc(x + w * 0.5, y + h * 0.10, w * 0.25, Math.PI, Math.PI * 2);
     ctx.fill();
     ctx.fillRect(x + w * 0.27, y + h * 0.07, w * 0.47, h * 0.13);
   } else {
-    // Top-knot
     ctx.fillRect(x + w * 0.31, y + h * 0.00, w * 0.38, h * 0.12);
     ctx.fillRect(x + w * 0.43, y - h * 0.135, w * 0.15, h * 0.15);
   }
@@ -1190,65 +990,19 @@ function drawChakraAura(ctx, x, y, w, h, color) {
 function drawParticles(ctx) {
   ctx.save();
   for (const p of particles) {
-    if (p.alpha <= 0) continue;
-    ctx.globalAlpha = p.alpha;
+    const a = p.alpha !== undefined ? p.alpha : (p.life / p.maxLife);
+    if (a <= 0) continue;
+    ctx.globalAlpha = a;
     ctx.shadowBlur = p.glow ? 10 : 0;
     ctx.shadowColor = p.color;
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, Math.max(0.5, p.size * p.alpha), 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, Math.max(0.5, p.size * a), 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
   ctx.restore();
-}
-
-function renderCharPreview(player, charIndex) {
-  const char = ROSTER[charIndex];
-  if (!char) return;
-  const isP2 = player === 1;
-
-  const canvas    = isP2 ? p2PreviewCanvas : p1PreviewCanvas;
-  const nameEl    = isP2 ? p2Name          : p1Name;
-  const statsEl   = isP2 ? p2Stats         : p1Stats;
-  const portraitEl = isP2 ? p2Portrait     : p1Portrait;
-
-  nameEl.textContent = char.name;
-  portraitEl.style.borderColor = char.color;
-  portraitEl.style.boxShadow   = '0 0 20px ' + char.color + '88';
-
-  statsEl.innerHTML =
-    buildStatRow('Power',   char.stats.power,   char.color)  +
-    buildStatRow('Speed',   char.stats.speed,   char.accent) +
-    buildStatRow('Defense', char.stats.defense, '#7744ff')   +
-    buildStatRow('Chakra',  char.stats.chakra,  '#00ffe0');
-
-  if (!canvas) return;
-  canvas.width  = canvas.offsetWidth  || 160;
-  canvas.height = canvas.offsetHeight || 200;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-
-  ctx.clearRect(0, 0, W, H);
-
-  const bgGrd = ctx.createRadialGradient(W * 0.5, H * 0.9, 4, W * 0.5, H * 0.5, W * 0.68);
-  bgGrd.addColorStop(0, char.color + '55');
-  bgGrd.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = bgGrd;
-  ctx.fillRect(0, 0, W, H);
-
-  drawFighter(ctx, {
-    x: W * 0.14,
-    y: H * 0.06,
-    width:  W * 0.72,
-    height: H * 0.88,
-    state: 'idle',
-    facingRight: !isP2,
-    charIndex: charIndex,
-    chakra: 0
-  }, isP2);
 }
 
 function buildStatRow(label, val, color) {
@@ -1264,8 +1018,17 @@ let menuPCanvas = null;
 let menuPCtx = null;
 
 function initMenuParticles() {
-  menuPCanvas = document.getElementById('menuParticles');
-  if (!menuPCanvas) return;
+  // Reuse or create a dedicated canvas for the animated menu background
+  let canvas = document.getElementById('menuParticlesCanvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'menuParticlesCanvas';
+    canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
+    const menuScreen = document.getElementById('screen-menu');
+    if (menuScreen) menuScreen.insertBefore(canvas, menuScreen.firstChild);
+    else document.body.insertBefore(canvas, document.body.firstChild);
+  }
+  menuPCanvas = canvas;
   menuPCanvas.width  = window.innerWidth;
   menuPCanvas.height = window.innerHeight;
   menuPCtx = menuPCanvas.getContext('2d');
@@ -1273,6 +1036,10 @@ function initMenuParticles() {
   for (let i = 0; i < 58; i++) menuParticleList.push(newMenuParticle(true));
   if (menuAnimId) cancelAnimationFrame(menuAnimId);
   tickMenuParticles();
+}
+
+function startMenuParticles() {
+  initMenuParticles();
 }
 
 function newMenuParticle(scatter) {
@@ -1328,39 +1095,39 @@ window.addEventListener('keyup', e => {
   keys[e.code] = false;
 });
 
-btnVsPlayer.addEventListener('click', () => {
+if (btnVsPlayer) btnVsPlayer.addEventListener('click', () => {
   isAIMode = false;
   charSelectCursor = 0;
   initCharSelect();
   showScreen('screen-charselect');
 });
 
-btnVsAI.addEventListener('click', () => {
+if (btnVsAI) btnVsAI.addEventListener('click', () => {
   isAIMode = true;
   charSelectCursor = 0;
   initCharSelect();
   showScreen('screen-charselect');
 });
 
-btnHowToPlay.addEventListener('click', () => {
+if (btnHowToPlay) btnHowToPlay.addEventListener('click', () => {
   showScreen('screen-howtoplay');
 });
 
-btnHowBack.addEventListener('click', () => {
+if (btnHowBack) btnHowBack.addEventListener('click', () => {
   showScreen('screen-menu');
 });
 
-btnCharBack.addEventListener('click', () => {
+if (btnCharBack) btnCharBack.addEventListener('click', () => {
   if (charSelectCursor === 1) {
     charSelectCursor = 0;
     renderCharPreview(0, selectedChars[0]);
-    selectionStatus.textContent = 'P1 — Choose your fighter';
+    if (selectionStatus) selectionStatus.textContent = 'P1 — Choose your fighter';
   } else {
     showScreen('screen-menu');
   }
 });
 
-btnCharNext.addEventListener('click', () => {
+if (btnCharNext) btnCharNext.addEventListener('click', () => {
   if (charSelectCursor === 0) {
     if (selectedChars[0] === null || selectedChars[0] === undefined) return;
     if (isAIMode) {
@@ -1370,7 +1137,7 @@ btnCharNext.addEventListener('click', () => {
     } else {
       charSelectCursor = 1;
       renderCharPreview(1, selectedChars[1] !== undefined ? selectedChars[1] : 0);
-      selectionStatus.textContent = 'P2 — Choose your fighter';
+      if (selectionStatus) selectionStatus.textContent = 'P2 — Choose your fighter';
     }
   } else if (charSelectCursor === 1) {
     if (selectedChars[1] === null || selectedChars[1] === undefined) return;
@@ -1379,7 +1146,7 @@ btnCharNext.addEventListener('click', () => {
   }
 });
 
-charGrid.addEventListener('click', e => {
+if (charGrid) charGrid.addEventListener('click', e => {
   const card = e.target.closest('.char-card');
   if (!card) return;
   const idx = parseInt(card.dataset.index, 10);
@@ -1390,7 +1157,7 @@ charGrid.addEventListener('click', e => {
   renderCharPreview(charSelectCursor, idx);
 });
 
-btnMapBack.addEventListener('click', () => {
+if (btnMapBack) btnMapBack.addEventListener('click', () => {
   if (isAIMode) {
     charSelectCursor = 0;
     initCharSelect();
@@ -1401,12 +1168,12 @@ btnMapBack.addEventListener('click', () => {
   }
 });
 
-btnFight.addEventListener('click', () => {
+if (btnFight) btnFight.addEventListener('click', () => {
   if (selectedMap === null || selectedMap === undefined) return;
   startMatch();
 });
 
-mapGrid.addEventListener('click', e => {
+if (mapGrid) mapGrid.addEventListener('click', e => {
   const thumb = e.target.closest('.map-thumb');
   if (!thumb) return;
   const idx = parseInt(thumb.dataset.index, 10);
@@ -1414,11 +1181,11 @@ mapGrid.addEventListener('click', e => {
   selectedMap = idx;
   document.querySelectorAll('.map-thumb').forEach(t => t.classList.remove('selected'));
   thumb.classList.add('selected');
-  mapPreviewName.textContent = maps[idx] ? maps[idx].name : '';
-  btnFight.disabled = false;
+  if (mapPreviewName) mapPreviewName.textContent = maps[idx] ? maps[idx].name : '';
+  if (btnFight) btnFight.disabled = false;
 });
 
-pauseBtn.addEventListener('click', () => {
+if (pauseBtn) pauseBtn.addEventListener('click', () => {
   if (gameState === 'game') {
     gameState = 'pause';
     if (animationFrameId) {
@@ -1429,23 +1196,23 @@ pauseBtn.addEventListener('click', () => {
   }
 });
 
-btnResume.addEventListener('click', () => {
+if (btnResume) btnResume.addEventListener('click', () => {
   gameState = 'game';
   showScreen('screen-game');
   animationFrameId = requestAnimationFrame(gameLoop);
 });
 
-btnRestartMatch.addEventListener('click', () => {
+if (btnRestartMatch) btnRestartMatch.addEventListener('click', () => {
   gameState = 'game';
   showScreen('screen-game');
   startMatch();
 });
 
-btnRematch.addEventListener('click', () => {
+if (btnRematch) btnRematch.addEventListener('click', () => {
   startMatch();
 });
 
-btnMenuFromWin.addEventListener('click', () => {
+if (btnMenuFromWin) btnMenuFromWin.addEventListener('click', () => {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
@@ -1454,7 +1221,7 @@ btnMenuFromWin.addEventListener('click', () => {
   showScreen('screen-menu');
 });
 
-btnMenuFromPause.addEventListener('click', () => {
+if (btnMenuFromPause) btnMenuFromPause.addEventListener('click', () => {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
@@ -1463,9 +1230,9 @@ btnMenuFromPause.addEventListener('click', () => {
   showScreen('screen-menu');
 });
 
-movelistToggle.addEventListener('click', () => {
-  const isVisible = movelistOverlay.style.display === 'flex';
-  movelistOverlay.style.display = isVisible ? 'none' : 'flex';
+if (movelistToggle) movelistToggle.addEventListener('click', () => {
+  const isVisible = movelistOverlay && movelistOverlay.style.display === 'flex';
+  if (movelistOverlay) movelistOverlay.style.display = isVisible ? 'none' : 'flex';
   movelistToggle.textContent = isVisible ? '📋 Moves' : '✕ Close';
 });
 
@@ -1473,16 +1240,15 @@ movelistToggle.addEventListener('click', () => {
 
 (function () {
 
-  // ── Clamp helpers ──────────────────────────────────────────────────────────
   function clamp(val, min, max) {
     return Math.min(Math.max(val, min), max);
   }
 
   function clampFighter(f) {
     if (!f || !gameCanvas) return;
-    const hw = (f.width || 60) / 2;
+    const hw = (f.hitbox ? f.hitbox.w : (f.width || 60)) / 2;
     f.x = clamp(f.x, hw, gameCanvas.width - hw);
-    f.y = clamp(f.y, 0, GROUND_Y !== undefined ? GROUND_Y : gameCanvas.height - 80);
+    f.y = clamp(f.y, 0, gameCanvas.height - 80);
     f.health = clamp(f.health, 0, 100);
     f.chakra = clamp(f.chakra, 0, 100);
   }
@@ -1493,40 +1259,9 @@ movelistToggle.addEventListener('click', () => {
     }
   }
 
-  // ── HUD fill guard ─────────────────────────────────────────────────────────
   function safeSetFill(el, value) {
     if (!el) return;
     el.style.width = clamp(value, 0, 100) + '%';
-  }
-
-  // ── Override updateHUD to add clamping ──────────────────────────────────────
-  const _origUpdateHUD = typeof updateHUD === 'function' ? updateHUD : null;
-  updateHUD = function () {
-    if (typeof p1 !== 'undefined') clampFighter(p1);
-    if (typeof p2 !== 'undefined') clampFighter(p2);
-    clampTimer();
-
-    if (_origUpdateHUD) {
-      try { _origUpdateHUD(); } catch (e) { console.warn('[HUD]', e); }
-    } else {
-      safeSetFill(healthFillP1,  p1 ? p1.health  : 100);
-      safeSetFill(healthFillP2,  p2 ? p2.health  : 100);
-      safeSetFill(chakraFillP1,  p1 ? p1.chakra  : 100);
-      safeSetFill(chakraFillP2,  p2 ? p2.chakra  : 100);
-      if (timer) timer.textContent = typeof roundTimer !== 'undefined' ? roundTimer : '--';
-    }
-  };
-
-  // ── charSelectCursor guard: both players must pick before advancing ─────────
-  const _origBtnFight = document.getElementById('btnFight');
-  if (_origBtnFight) {
-    _origBtnFight.addEventListener('click', function (e) {
-      if (typeof selectedChars === 'undefined' ||
-          selectedChars[0] == null || selectedChars[1] == null) {
-        e.stopImmediatePropagation();
-        showSelectionWarning();
-      }
-    }, true);
   }
 
   function showSelectionWarning() {
@@ -1541,7 +1276,17 @@ movelistToggle.addEventListener('click', () => {
     }, 1800);
   }
 
-  // ── AI guard: runAI is a no-op when isAIMode is false ──────────────────────
+  const _origBtnFight = document.getElementById('btnFight');
+  if (_origBtnFight) {
+    _origBtnFight.addEventListener('click', function (e) {
+      if (typeof selectedChars === 'undefined' ||
+          selectedChars[0] == null || selectedChars[1] == null) {
+        e.stopImmediatePropagation();
+        showSelectionWarning();
+      }
+    }, true);
+  }
+
   const _origRunAI = typeof runAI === 'function' ? runAI : null;
   runAI = function (f, opponent) {
     if (!isAIMode) return;
@@ -1550,7 +1295,6 @@ movelistToggle.addEventListener('click', () => {
     }
   };
 
-  // ── RAF / gameLoop error boundary ──────────────────────────────────────────
   const _origGameLoop = typeof gameLoop === 'function' ? gameLoop : null;
   if (_origGameLoop) {
     gameLoop = function (timestamp) {
@@ -1567,7 +1311,6 @@ movelistToggle.addEventListener('click', () => {
     };
   }
 
-  // ── localStorage persistence ───────────────────────────────────────────────
   const LS_KEY = 'animeFighter_prefs';
 
   function savePrefs() {
@@ -1596,7 +1339,6 @@ movelistToggle.addEventListener('click', () => {
     } catch (_) {}
   }
 
-  // ── Win-streak / match history ─────────────────────────────────────────────
   const HIST_KEY = 'animeFighter_history';
 
   function recordMatchResult(winnerLabel) {
@@ -1608,7 +1350,6 @@ movelistToggle.addEventListener('click', () => {
     } catch (_) {}
   }
 
-  // Hook into endMatch to persist results
   const _origEndMatch = typeof endMatch === 'function' ? endMatch : null;
   endMatch = function (winner) {
     if (winner && winner.name) recordMatchResult(winner.name);
@@ -1618,11 +1359,9 @@ movelistToggle.addEventListener('click', () => {
     }
   };
 
-  // ── Expose utilities for other modules ────────────────────────────────────
   window._af = window._af || {};
   Object.assign(window._af, { clamp, clampFighter, savePrefs, loadPrefs, safeSetFill });
 
-  // ── Boot ──────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
     loadPrefs();
   }, { once: true });
@@ -1633,12 +1372,13 @@ movelistToggle.addEventListener('click', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  // --- Character roster ---
-  characterRoster = [
+  // --- Character roster (shared as `roster`) ---
+  window.roster = [
     {
       name: 'Kazuki',
       color: '#ff7400',
       accentColor: '#ffaa00',
+      speed: 7, power: 8, defense: 5, chakra: 9,
       stats: { power: 8, speed: 7, defense: 5, chakra: 9 },
       moves: [
         { input: '→ → A / → → J', name: 'Wind Slash' },
@@ -1651,6 +1391,7 @@ document.addEventListener('DOMContentLoaded', () => {
       name: 'Seiryu',
       color: '#1a8fff',
       accentColor: '#00eaff',
+      speed: 9, power: 6, defense: 6, chakra: 8,
       stats: { power: 6, speed: 9, defense: 6, chakra: 8 },
       moves: [
         { input: '→ → A / → → J', name: 'Lightning Dash' },
@@ -1663,6 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
       name: 'Kurohana',
       color: '#9b30ff',
       accentColor: '#cc88ff',
+      speed: 5, power: 9, defense: 8, chakra: 7,
       stats: { power: 9, speed: 5, defense: 8, chakra: 7 },
       moves: [
         { input: '→ → A / → → J', name: 'Shadow Fang'  },
@@ -1675,6 +1417,7 @@ document.addEventListener('DOMContentLoaded', () => {
       name: 'Akemi',
       color: '#ff1a1a',
       accentColor: '#ff6666',
+      speed: 8, power: 7, defense: 7, chakra: 7,
       stats: { power: 7, speed: 8, defense: 7, chakra: 7 },
       moves: [
         { input: '→ → A / → → J', name: 'Flame Wheel'  },
@@ -1685,35 +1428,35 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   ];
 
-  // --- Map data ---
-  mapData = [
+  // --- Map data (shared as `maps`) ---
+  window.maps = [
     {
       name: 'Hidden Leaf Village',
       bgColor: '#1a2a0a',
-      layers: ['#0d1f05', '#1a3a0d', '#2a5215'],
-      groundY: 0.78,
+      groundColor: '#2a4a1a',
       accentColor: '#33ff55',
+      layers: [],
     },
     {
       name: 'Valley of the End',
       bgColor: '#0a0a2a',
-      layers: ['#050518', '#0d0d30', '#1a1a50'],
-      groundY: 0.80,
+      groundColor: '#1a1a50',
       accentColor: '#4455ff',
+      layers: [],
     },
     {
       name: 'Sand Village Dunes',
       bgColor: '#2a1a00',
-      layers: ['#1a0f00', '#2e1c00', '#4a2e00'],
-      groundY: 0.76,
+      groundColor: '#4a2e00',
       accentColor: '#ffaa22',
+      layers: [],
     },
     {
       name: 'Rooftop Showdown',
       bgColor: '#0a0a0a',
-      layers: ['#050505', '#111111', '#1e1e1e'],
-      groundY: 0.72,
+      groundColor: '#1e1e1e',
       accentColor: '#ff4400',
+      layers: [],
     },
   ];
 
@@ -1724,16 +1467,6 @@ document.addEventListener('DOMContentLoaded', () => {
     audioCtx = null;
   }
 
-  const soundFiles = {
-    hit:       null,
-    block:     null,
-    special:   null,
-    ko:        null,
-    roundWin:  null,
-    select:    null,
-  };
-
-  // Synthesise simple procedural sounds so the game works without asset files
   function synthSound(type) {
     if (!audioCtx) return null;
     const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.25, audioCtx.sampleRate);
@@ -1752,27 +1485,24 @@ document.addEventListener('DOMContentLoaded', () => {
     return buf;
   }
 
-  Object.keys(soundFiles).forEach(name => {
+  ['hit','block','special','ko','roundWin','select','attack','jump'].forEach(name => {
     sounds[name] = synthSound(name);
   });
 
   // --- Build move-list content ---
   function buildMoveList() {
-    if (!els.movelistContent) return;
-    const c1 = characterRoster[selectedChars[0]];
-    const c2 = characterRoster[selectedChars[1]];
+    if (!movelistContent) return;
+    const c1 = roster[selectedChars[0]];
+    const c2 = roster[selectedChars[1]];
+    if (!c1 || !c2) return;
     const fmt = (char, player) => `
       <div class="movelist-player" style="color:${char.color}">
         <strong>${player}: ${char.name}</strong>
         <ul>${char.moves.map(m => `<li><kbd>${m.input}</kbd> ${m.name}</li>`).join('')}</ul>
       </div>`;
-    els.movelistContent.innerHTML = fmt(c1, 'P1') + fmt(c2, 'P2');
+    movelistContent.innerHTML = fmt(c1, 'P1') + fmt(c2, 'P2');
   }
-  // Expose so startMatch can call it after char selection is finalised
   window._buildMoveList = buildMoveList;
-
-  // --- Attach all event listeners (defined in 05_events.js) ---
-  attachEventListeners();
 
   // --- Kick off ---
   showScreen('screen-menu');
