@@ -1,0 +1,65 @@
+{
+  "app_name": "Anime_Fighter",
+  "description": "Anime characters fighting each other on different maps. Inspired by Naruto",
+  "complexity": "standard",
+  "updates": "normal",
+  "template": "",
+  "style_preset": "",
+  "style_intensity": "",
+  "variation": "",
+  "asset_mode": "",
+  "game_assets": "",
+  "kenney_assets": {},
+  "vault_notes_used": [
+    "/Users/agent/claude-obsidian/wiki/systems/telegram-agent/Obsidian Knowledge Standard.md",
+    "/Users/agent/claude-obsidian/wiki/projects/generated-apps/assertive_spike_squad_ass.md",
+    "/Users/agent/claude-obsidian/wiki/projects/generated-apps/dungeon-coin-run.md",
+    "/Users/agent/claude-obsidian/wiki/projects/generated-apps/neon-counter.md",
+    "/Users/agent/claude-obsidian/wiki/projects/generated-apps/icon-counter.md",
+    "libraries/Creative Reference Profile.md",
+    "libraries/Style Presets.md",
+    "libraries/UI Pattern Library.md"
+  ],
+  "asset_library_references": [
+    "Asset Library Index.md"
+  ],
+  "ui_pattern_references": [
+    "UI Pattern Library.md"
+  ],
+  "publish_preference": null,
+  "status": "verification_failed",
+  "completed_stages": [
+    "plan",
+    "html",
+    "css",
+    "js",
+    "readme"
+  ],
+  "current_stage": null,
+  "files_created": [
+    "plan.md",
+    "index.html",
+    "style.css",
+    "app.js",
+    "README.md"
+  ],
+  "last_error": "Browser: 0 console error(s), 1 page error(s)",
+  "stage_retry_counts": {},
+  "simplified_stages": [],
+  "current_substage": "js_init",
+  "completed_substages": [
+    "js_state",
+    "js_dom_refs",
+    "js_core_actions",
+    "js_render",
+    "js_events",
+    "js_validation_polish",
+    "js_init"
+  ],
+  "retry_count_by_substage": {},
+  "validation_status": "pass",
+  "browser_verification_status": "fail",
+  "quality_status": "needs_repair",
+  "created_at": "2026-05-31T01:24:22Z",
+  "updated_at": "2026-05-31T01:44:19Z"
+}
