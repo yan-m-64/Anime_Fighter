@@ -333,6 +333,7 @@ function initCharSelect() {
         card.dataset.index = i;
         card.style.cssText = `background:${char.color};border:2px solid #333;border-radius:8px;padding:10px;cursor:pointer;text-align:center;color:#fff;font-weight:bold;`;
         card.innerHTML = `<div style="font-size:13px;margin-top:4px;">${char.name}</div>`;
+        // Mark default selections visually
         if (i === 0) card.classList.add('selected-p1');
         if (i === 1) card.classList.add('selected-p2');
         charGrid.appendChild(card);
@@ -340,6 +341,7 @@ function initCharSelect() {
     renderCharPreview(0, 0);
     renderCharPreview(1, 1);
     updateSelectionStatus();
+    // Both chars are pre-selected, so the Next button can be enabled immediately
     if (btnCharNext) btnCharNext.disabled = false;
 }
 
@@ -373,8 +375,7 @@ function drawPreviewChar(canvas, char, facingRight) {
     if (!facingRight) { ctx.translate(w, 0); ctx.scale(-1, 1); }
     const bx = w * 0.28, by = h * 0.3, bw = w * 0.42, bh = h * 0.38;
     ctx.fillStyle = char.color;
-    // Use rect instead of roundRect for broad browser compatibility
-    ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 7); ctx.fill();
     ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = char.skinColor || '#f4c87a';
     ctx.beginPath(); ctx.arc(bx + bw / 2, by - 18, 18, 0, Math.PI * 2); ctx.fill();
@@ -398,6 +399,7 @@ function initMapSelect() {
     mapGrid.innerHTML = '';
     maps.forEach((map, i) => {
         const thumb = document.createElement('div');
+        // Use map-card to match CSS styling
         thumb.className = 'map-card' + (i === selectedMap ? ' selected' : '');
         thumb.dataset.index = i;
         thumb.style.cssText = `background:${map.bgColor};cursor:pointer;`;
@@ -405,6 +407,7 @@ function initMapSelect() {
         mapGrid.appendChild(thumb);
     });
     if (mapPreviewName) mapPreviewName.textContent = maps[selectedMap]?.name || '';
+    // A map is already selected by default, so enable the Fight button
     if (btnFight) btnFight.disabled = false;
 }
 
@@ -431,6 +434,7 @@ function startMatch() {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
 
+    // Set canvas to actual display size so coordinates map correctly
     gameCanvas.width = gameCanvas.offsetWidth || CANVAS_WIDTH;
     gameCanvas.height = gameCanvas.offsetHeight || CANVAS_HEIGHT;
 
@@ -444,6 +448,7 @@ function startMatch() {
     roundTimer = ROUND_DURATION;
     particles.length = 0;
 
+    // Update HUD names
     if (hudP1Name) hudP1Name.textContent = (roster[selectedChars[0]] || {}).name || 'P1';
     if (hudP2Name) hudP2Name.textContent = (roster[selectedChars[1]] || {}).name || 'P2';
 
@@ -521,6 +526,7 @@ function updateFighter(f, opponent, delta) {
 
     const canAct = f.hurtTimer <= 0 && f.attackTimer <= 0;
 
+    // Face opponent
     if (f.x + f.hitbox.w / 2 < opponent.x + opponent.hitbox.w / 2) f.facingRight = true;
     else f.facingRight = false;
 
@@ -676,14 +682,18 @@ function endRound(winner) {
     updatePips();
     if (roundScore) roundScore.textContent = `P1  ${p1.wins} — ${p2.wins}  P2`;
 
+    // Always show the round-win overlay
     showScreen('screen-roundwin');
 
     if (p1.wins >= 2 || p2.wins >= 2) {
+        // Match is over — show victory screen after a delay
         setTimeout(() => endMatch(p1.wins >= 2 ? p1 : p2), 2000);
     } else {
+        // Intermediate round — auto-advance to next round
         roundNum++;
         setTimeout(() => {
             showScreen('screen-game');
+            // gameState is now 'game' (set by showScreen), so resetRound's gameLoop will run
             resetRound();
             showRoundAnnounce(`ROUND ${roundNum}`, 'FIGHT!', 1600);
         }, 2200);
@@ -802,11 +812,13 @@ function drawFighterSprite(ctx, f, ch) {
     ctx.translate(f.x + fw / 2, fy);
     if (!f.facingRight) ctx.scale(-1, 1);
 
+    // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath();
     ctx.ellipse(0, fh + 5, fw * 0.42, 7, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    // Legs
     ctx.fillStyle = flash ? '#fff' : (char.legColor || '#1a1a40');
     if (f.state === 'run') {
         const sw = Math.sin(Date.now() * 0.018) * 14;
@@ -820,26 +832,31 @@ function drawFighterSprite(ctx, f, ch) {
         ctx.fillRect(fw * 0.08, fh * 0.6 + bob, fw * 0.3, fh * 0.4);
     }
 
+    // Body
     ctx.fillStyle = flash ? '#fff' : (char.color || '#ff7400');
     ctx.beginPath();
-    ctx.rect(-fw * 0.4, fh * 0.28 + bob, fw * 0.8, fh * 0.36);
+    ctx.roundRect(-fw * 0.4, fh * 0.28 + bob, fw * 0.8, fh * 0.36, 7);
     ctx.fill();
     ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
 
+    // Accent stripe
     ctx.fillStyle = char.accentColor || '#ffaa00';
     ctx.fillRect(-fw * 0.4, fh * 0.28 + bob, fw * 0.8, 6);
 
+    // Head
     ctx.fillStyle = flash ? '#fff' : (char.skinColor || '#f4c87a');
     ctx.beginPath();
     ctx.arc(0, fh * 0.18 + bob, fw * 0.26, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
 
+    // Eye
     ctx.fillStyle = char.eyeColor || '#cc2200';
     ctx.beginPath();
     ctx.arc(fw * 0.1, fh * 0.15 + bob, 4, 0, Math.PI * 2);
     ctx.fill();
 
+    // Attack effect
     if (f.isAttacking && f.state === 'special') {
         ctx.strokeStyle = char.accentColor || '#ff7400';
         ctx.lineWidth = 5; ctx.globalAlpha = 0.75;
@@ -861,6 +878,7 @@ function drawFighterSprite(ctx, f, ch) {
         ctx.globalAlpha = 1;
     }
 
+    // Block shield
     if (f.isBlocking) {
         ctx.fillStyle = 'rgba(0,207,255,0.28)';
         ctx.strokeStyle = '#00cfff'; ctx.lineWidth = 3;
@@ -876,6 +894,7 @@ function showRoundAnnounce(text, sub, duration) {
     if (!roundAnnounce) return;
     if (announceText) announceText.textContent = text;
     if (announceSub) announceSub.textContent = sub;
+    // CSS uses .round-announce.visible, not .active
     roundAnnounce.classList.add('visible');
     setTimeout(() => roundAnnounce.classList.remove('visible'), duration);
 }
@@ -1107,20 +1126,18 @@ window.addEventListener('keyup', e => {
   keys[e.code] = false;
 });
 
-// Show the target screen first, then initialize its contents so a throw in init
-// can't prevent navigation from happening.
 if (btnVsPlayer) btnVsPlayer.addEventListener('click', () => {
   isAIMode = false;
   charSelectCursor = 0;
+  initCharSelect();
   showScreen('screen-charselect');
-  try { initCharSelect(); } catch(e) { console.warn('[charselect]', e); }
 });
 
 if (btnVsAI) btnVsAI.addEventListener('click', () => {
   isAIMode = true;
   charSelectCursor = 0;
+  initCharSelect();
   showScreen('screen-charselect');
-  try { initCharSelect(); } catch(e) { console.warn('[charselect]', e); }
 });
 
 if (btnHowToPlay) btnHowToPlay.addEventListener('click', () => {
@@ -1146,8 +1163,8 @@ if (btnCharNext) btnCharNext.addEventListener('click', () => {
     if (selectedChars[0] === null || selectedChars[0] === undefined) return;
     if (isAIMode) {
       selectedChars[1] = Math.floor(Math.random() * roster.length);
+      initMapSelect();
       showScreen('screen-mapselect');
-      try { initMapSelect(); } catch(e) { console.warn('[mapselect]', e); }
     } else {
       charSelectCursor = 1;
       renderCharPreview(1, selectedChars[1] !== undefined ? selectedChars[1] : 0);
@@ -1155,8 +1172,8 @@ if (btnCharNext) btnCharNext.addEventListener('click', () => {
     }
   } else if (charSelectCursor === 1) {
     if (selectedChars[1] === null || selectedChars[1] === undefined) return;
+    initMapSelect();
     showScreen('screen-mapselect');
-    try { initMapSelect(); } catch(e) { console.warn('[mapselect]', e); }
   }
 });
 
@@ -1166,6 +1183,7 @@ if (charGrid) charGrid.addEventListener('click', e => {
   const idx = parseInt(card.dataset.index, 10);
   if (isNaN(idx)) return;
   selectedChars[charSelectCursor] = idx;
+  // Update visual selection highlight for current player's cursor
   document.querySelectorAll('.char-card').forEach((c, i) => {
     c.classList.remove('selected-p1', 'selected-p2', 'selected');
     if (i === selectedChars[0]) c.classList.add('selected-p1');
@@ -1179,8 +1197,8 @@ if (charGrid) charGrid.addEventListener('click', e => {
 if (btnMapBack) btnMapBack.addEventListener('click', () => {
   if (isAIMode) {
     charSelectCursor = 0;
+    initCharSelect();
     showScreen('screen-charselect');
-    try { initCharSelect(); } catch(e) { console.warn('[charselect]', e); }
   } else {
     charSelectCursor = 1;
     showScreen('screen-charselect');
@@ -1193,6 +1211,7 @@ if (btnFight) btnFight.addEventListener('click', () => {
 });
 
 if (mapGrid) mapGrid.addEventListener('click', e => {
+  // Cards are created with class 'map-card'
   const thumb = e.target.closest('.map-card');
   if (!thumb) return;
   const idx = parseInt(thumb.dataset.index, 10);
@@ -1231,6 +1250,7 @@ if (btnRestartMatch) btnRestartMatch.addEventListener('click', () => {
 });
 
 if (btnRematch) btnRematch.addEventListener('click', () => {
+  // Reset wins for a fresh match
   if (p1) p1.wins = 0;
   if (p2) p2.wins = 0;
   startMatch();
