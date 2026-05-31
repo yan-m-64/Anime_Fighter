@@ -333,16 +333,11 @@ function initCharSelect() {
         card.dataset.index = i;
         card.style.cssText = `background:${char.color};border:2px solid #333;border-radius:8px;padding:10px;cursor:pointer;text-align:center;color:#fff;font-weight:bold;`;
         card.innerHTML = `<div style="font-size:13px;margin-top:4px;">${char.name}</div>`;
-        // Mark default selections visually
-        if (i === 0) card.classList.add('selected-p1');
-        if (i === 1) card.classList.add('selected-p2');
         charGrid.appendChild(card);
     });
     renderCharPreview(0, 0);
     renderCharPreview(1, 1);
     updateSelectionStatus();
-    // Both chars are pre-selected, so the Next button can be enabled immediately
-    if (btnCharNext) btnCharNext.disabled = false;
 }
 
 function renderCharPreview(player, charIndex) {
@@ -399,16 +394,13 @@ function initMapSelect() {
     mapGrid.innerHTML = '';
     maps.forEach((map, i) => {
         const thumb = document.createElement('div');
-        // Use map-card to match CSS styling
-        thumb.className = 'map-card' + (i === selectedMap ? ' selected' : '');
+        thumb.className = 'map-thumb' + (i === selectedMap ? ' selected' : '');
         thumb.dataset.index = i;
-        thumb.style.cssText = `background:${map.bgColor};cursor:pointer;`;
-        thumb.innerHTML = `<div class="map-card-label">${map.name}</div>`;
+        thumb.style.cssText = `background:${map.bgColor};border:3px solid ${i === selectedMap ? '#ff7400' : '#333'};border-radius:8px;padding:8px 12px;cursor:pointer;color:#fff;font-weight:bold;text-align:center;`;
+        thumb.textContent = map.name;
         mapGrid.appendChild(thumb);
     });
     if (mapPreviewName) mapPreviewName.textContent = maps[selectedMap]?.name || '';
-    // A map is already selected by default, so enable the Fight button
-    if (btnFight) btnFight.disabled = false;
 }
 
 function createFighter(charIndex, startX, facingRight) {
@@ -432,12 +424,6 @@ function createFighter(charIndex, startX, facingRight) {
 
 function startMatch() {
     cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
-
-    // Set canvas to actual display size so coordinates map correctly
-    gameCanvas.width = gameCanvas.offsetWidth || CANVAS_WIDTH;
-    gameCanvas.height = gameCanvas.offsetHeight || CANVAS_HEIGHT;
-
     const cw = gameCanvas.width;
     const savedWins = [p1 ? p1.wins : 0, p2 ? p2.wins : 0];
     p1 = createFighter(selectedChars[0], cw * 0.22, true);
@@ -447,13 +433,7 @@ function startMatch() {
     roundNum = 1;
     roundTimer = ROUND_DURATION;
     particles.length = 0;
-
-    // Update HUD names
-    if (hudP1Name) hudP1Name.textContent = (roster[selectedChars[0]] || {}).name || 'P1';
-    if (hudP2Name) hudP2Name.textContent = (roster[selectedChars[1]] || {}).name || 'P2';
-
     updatePips();
-    if (typeof window._buildMoveList === 'function') window._buildMoveList();
     showScreen('screen-game');
     showRoundAnnounce('ROUND 1', 'FIGHT!', 1600);
     lastTimestamp = 0;
@@ -663,7 +643,6 @@ function updatePips() {
 
 function endRound(winner) {
     cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
     gameState = 'roundwin';
 
     if (winner === p1) {
@@ -676,27 +655,17 @@ function endRound(winner) {
         if (winnerText) winnerText.textContent = (p2.char?.name || 'P2') + ' wins the round!';
     } else {
         if (koText) koText.textContent = 'TIME OUT!';
-        if (winnerText) winnerText.textContent = 'Draw!';
+        if (winnerText) winnerText.textContent = 'Double K.O. — Draw!';
     }
 
     updatePips();
     if (roundScore) roundScore.textContent = `P1  ${p1.wins} — ${p2.wins}  P2`;
 
-    // Always show the round-win overlay
-    showScreen('screen-roundwin');
-
     if (p1.wins >= 2 || p2.wins >= 2) {
-        // Match is over — show victory screen after a delay
-        setTimeout(() => endMatch(p1.wins >= 2 ? p1 : p2), 2000);
+        setTimeout(() => endMatch(p1.wins >= 2 ? p1 : p2), 1800);
     } else {
-        // Intermediate round — auto-advance to next round
         roundNum++;
-        setTimeout(() => {
-            showScreen('screen-game');
-            // gameState is now 'game' (set by showScreen), so resetRound's gameLoop will run
-            resetRound();
-            showRoundAnnounce(`ROUND ${roundNum}`, 'FIGHT!', 1600);
-        }, 2200);
+        showScreen('screen-roundwin');
     }
 }
 
@@ -894,9 +863,8 @@ function showRoundAnnounce(text, sub, duration) {
     if (!roundAnnounce) return;
     if (announceText) announceText.textContent = text;
     if (announceSub) announceSub.textContent = sub;
-    // CSS uses .round-announce.visible, not .active
-    roundAnnounce.classList.add('visible');
-    setTimeout(() => roundAnnounce.classList.remove('visible'), duration);
+    roundAnnounce.classList.add('active');
+    setTimeout(() => roundAnnounce.classList.remove('active'), duration);
 }
 
 function runAI(f, opponent) {
@@ -1050,6 +1018,7 @@ let menuPCanvas = null;
 let menuPCtx = null;
 
 function initMenuParticles() {
+  // Reuse or create a dedicated canvas for the animated menu background
   let canvas = document.getElementById('menuParticlesCanvas');
   if (!canvas) {
     canvas = document.createElement('canvas');
@@ -1183,15 +1152,9 @@ if (charGrid) charGrid.addEventListener('click', e => {
   const idx = parseInt(card.dataset.index, 10);
   if (isNaN(idx)) return;
   selectedChars[charSelectCursor] = idx;
-  // Update visual selection highlight for current player's cursor
-  document.querySelectorAll('.char-card').forEach((c, i) => {
-    c.classList.remove('selected-p1', 'selected-p2', 'selected');
-    if (i === selectedChars[0]) c.classList.add('selected-p1');
-    if (i === selectedChars[1]) c.classList.add('selected-p2');
-  });
+  document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
   renderCharPreview(charSelectCursor, idx);
-  updateSelectionStatus();
-  if (btnCharNext) btnCharNext.disabled = false;
 });
 
 if (btnMapBack) btnMapBack.addEventListener('click', () => {
@@ -1211,16 +1174,12 @@ if (btnFight) btnFight.addEventListener('click', () => {
 });
 
 if (mapGrid) mapGrid.addEventListener('click', e => {
-  // Cards are created with class 'map-card'
-  const thumb = e.target.closest('.map-card');
+  const thumb = e.target.closest('.map-thumb');
   if (!thumb) return;
   const idx = parseInt(thumb.dataset.index, 10);
   if (isNaN(idx)) return;
   selectedMap = idx;
-  document.querySelectorAll('.map-card').forEach(t => {
-    t.classList.remove('selected');
-    t.style.border = '2px solid #333';
-  });
+  document.querySelectorAll('.map-thumb').forEach(t => t.classList.remove('selected'));
   thumb.classList.add('selected');
   if (mapPreviewName) mapPreviewName.textContent = maps[idx] ? maps[idx].name : '';
   if (btnFight) btnFight.disabled = false;
@@ -1250,9 +1209,6 @@ if (btnRestartMatch) btnRestartMatch.addEventListener('click', () => {
 });
 
 if (btnRematch) btnRematch.addEventListener('click', () => {
-  // Reset wins for a fresh match
-  if (p1) p1.wins = 0;
-  if (p2) p2.wins = 0;
   startMatch();
 });
 
@@ -1263,7 +1219,6 @@ if (btnMenuFromWin) btnMenuFromWin.addEventListener('click', () => {
   }
   gameState = 'menu';
   showScreen('screen-menu');
-  startMenuParticles();
 });
 
 if (btnMenuFromPause) btnMenuFromPause.addEventListener('click', () => {
@@ -1273,7 +1228,6 @@ if (btnMenuFromPause) btnMenuFromPause.addEventListener('click', () => {
   }
   gameState = 'menu';
   showScreen('screen-menu');
-  startMenuParticles();
 });
 
 if (movelistToggle) movelistToggle.addEventListener('click', () => {
@@ -1398,7 +1352,7 @@ if (movelistToggle) movelistToggle.addEventListener('click', () => {
 
   const _origEndMatch = typeof endMatch === 'function' ? endMatch : null;
   endMatch = function (winner) {
-    if (winner && winner.char && winner.char.name) recordMatchResult(winner.char.name);
+    if (winner && winner.name) recordMatchResult(winner.name);
     savePrefs();
     if (_origEndMatch) {
       try { _origEndMatch(winner); } catch (e) { console.warn('[endMatch]', e); }
@@ -1427,9 +1381,9 @@ document.addEventListener('DOMContentLoaded', () => {
       speed: 7, power: 8, defense: 5, chakra: 9,
       stats: { power: 8, speed: 7, defense: 5, chakra: 9 },
       moves: [
-        { input: '→ → G / → → J', name: 'Wind Slash' },
-        { input: '↓ → G / ↓ → J', name: 'Chakra Burst' },
-        { input: '↑ G / ↑ J',     name: 'Sky Strike'  },
+        { input: '→ → A / → → J', name: 'Wind Slash' },
+        { input: '↓ → A / ↓ → J', name: 'Chakra Burst' },
+        { input: '↑ A / ↑ J',     name: 'Sky Strike'  },
       ],
       hitboxes: { stand: { w: 48, h: 80 }, attack: { w: 64, h: 40, ox: 32 } },
     },
@@ -1440,9 +1394,9 @@ document.addEventListener('DOMContentLoaded', () => {
       speed: 9, power: 6, defense: 6, chakra: 8,
       stats: { power: 6, speed: 9, defense: 6, chakra: 8 },
       moves: [
-        { input: '→ → G / → → J', name: 'Lightning Dash' },
-        { input: '↓ → G / ↓ → J', name: 'Thunder Bolt'   },
-        { input: '↑ G / ↑ J',     name: 'Storm Kick'      },
+        { input: '→ → A / → → J', name: 'Lightning Dash' },
+        { input: '↓ → A / ↓ → J', name: 'Thunder Bolt'   },
+        { input: '↑ A / ↑ J',     name: 'Storm Kick'      },
       ],
       hitboxes: { stand: { w: 44, h: 76 }, attack: { w: 60, h: 36, ox: 28 } },
     },
@@ -1453,9 +1407,9 @@ document.addEventListener('DOMContentLoaded', () => {
       speed: 5, power: 9, defense: 8, chakra: 7,
       stats: { power: 9, speed: 5, defense: 8, chakra: 7 },
       moves: [
-        { input: '→ → G / → → J', name: 'Shadow Fang'  },
-        { input: '↓ → G / ↓ → J', name: 'Dark Petal'   },
-        { input: '↑ G / ↑ J',     name: 'Void Smash'   },
+        { input: '→ → A / → → J', name: 'Shadow Fang'  },
+        { input: '↓ → A / ↓ → J', name: 'Dark Petal'   },
+        { input: '↑ A / ↑ J',     name: 'Void Smash'   },
       ],
       hitboxes: { stand: { w: 52, h: 84 }, attack: { w: 68, h: 44, ox: 36 } },
     },
@@ -1466,9 +1420,9 @@ document.addEventListener('DOMContentLoaded', () => {
       speed: 8, power: 7, defense: 7, chakra: 7,
       stats: { power: 7, speed: 8, defense: 7, chakra: 7 },
       moves: [
-        { input: '→ → G / → → J', name: 'Flame Wheel'  },
-        { input: '↓ → G / ↓ → J', name: 'Ember Rush'   },
-        { input: '↑ G / ↑ J',     name: 'Phoenix Rise' },
+        { input: '→ → A / → → J', name: 'Flame Wheel'  },
+        { input: '↓ → A / ↓ → J', name: 'Ember Rush'   },
+        { input: '↑ A / ↑ J',     name: 'Phoenix Rise' },
       ],
       hitboxes: { stand: { w: 46, h: 78 }, attack: { w: 62, h: 38, ox: 30 } },
     },

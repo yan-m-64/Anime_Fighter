@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anime Fighter</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- MAIN MENU -->
+<div id="screen-menu" class="screen active">
+  <canvas id="menuParticlesCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
+  <div class="menu-bg">
+    <div class="menu-particles" id="menuParticles"></div>
+    <div class="menu-content">
+      <div class="game-logo">
+        <span class="logo-anime">ANIME</span>
+        <span class="logo-fighter">FIGHTER</span>
+        <div class="logo-sub">SHINOBI CLASH</div>
+      </div>
+      <nav class="main-nav">
+        <button class="nav-btn primary" id="btnVsPlayer">
+          <span class="btn-icon">⚔</span> VS PLAYER
+        </button>
+        <button class="nav-btn" id="btnVsAI">
+          <span class="btn-icon">🤖</span> VS CPU
+        </button>
+        <button class="nav-btn" id="btnHowToPlay">
+          <span class="btn-icon">📜</span> HOW TO PLAY
+        </button>
+      </nav>
+      <div class="menu-footer">WASD + Arrow Keys · 2-Player Local</div>
+    </div>
+  </div>
+</div>
+
+<!-- HOW TO PLAY -->
+<div id="screen-howtoplay" class="screen">
+  <div class="overlay-panel">
+    <h2 class="panel-title">HOW TO PLAY</h2>
+    <div class="controls-grid">
+      <div class="player-controls p1">
+        <h3>PLAYER 1</h3>
+        <div class="ctrl-row"><kbd>A</kbd><kbd>D</kbd> Move</div>
+        <div class="ctrl-row"><kbd>W</kbd> Jump</div>
+        <div class="ctrl-row"><kbd>S</kbd> Block</div>
+        <div class="ctrl-row"><kbd>G</kbd> Light Attack</div>
+        <div class="ctrl-row"><kbd>H</kbd> Heavy Attack</div>
+        <div class="ctrl-row"><kbd>J</kbd> Special Move</div>
+      </div>
+      <div class="player-controls p2">
+        <h3>PLAYER 2</h3>
+        <div class="ctrl-row"><kbd>←</kbd><kbd>→</kbd> Move</div>
+        <div class="ctrl-row"><kbd>↑</kbd> Jump</div>
+        <div class="ctrl-row"><kbd>↓</kbd> Block</div>
+        <div class="ctrl-row"><kbd>1</kbd> Light Attack</div>
+        <div class="ctrl-row"><kbd>2</kbd> Heavy Attack</div>
+        <div class="ctrl-row"><kbd>3</kbd> Special Move</div>
+      </div>
+    </div>
+    <div class="tips">
+      <p>Win 2 rounds to claim victory · Special moves consume chakra · Blocking reduces damage by 70%</p>
+    </div>
+    <button class="nav-btn" id="btnHowBack">← BACK</button>
+  </div>
+</div>
+
+<!-- CHARACTER SELECT -->
+<div id="screen-charselect" class="screen">
+  <div class="charselect-bg">
+    <h2 class="screen-title">SELECT YOUR FIGHTER</h2>
+    <div class="charselect-layout">
+      <!-- P1 Preview -->
+      <div class="fighter-preview p1-preview">
+        <div class="preview-portrait" id="p1Portrait">
+          <canvas id="p1PreviewCanvas" width="160" height="220"></canvas>
+        </div>
+        <div class="preview-info">
+          <div class="preview-name" id="p1Name">---</div>
+          <div class="preview-stats" id="p1Stats"></div>
+        </div>
+        <div class="player-label p1-label">P1</div>
+      </div>
+
+      <!-- Character Grid -->
+      <div class="char-grid" id="charGrid"></div>
+
+      <!-- P2 Preview -->
+      <div class="fighter-preview p2-preview">
+        <div class="preview-portrait" id="p2Portrait">
+          <canvas id="p2PreviewCanvas" width="160" height="220"></canvas>
+        </div>
+        <div class="preview-info">
+          <div class="preview-name" id="p2Name">---</div>
+          <div class="preview-stats" id="p2Stats"></div>
+        </div>
+        <div class="player-label p2-label">P2</div>
+      </div>
+    </div>
+    <div class="charselect-footer">
+      <span id="selectionStatus">Both players must select a character</span>
+      <button class="nav-btn" id="btnCharNext" disabled>CHOOSE MAP →</button>
+    </div>
+    <button class="nav-btn small" id="btnCharBack">← BACK</button>
+  </div>
+</div>
+
+<!-- MAP SELECT -->
+<div id="screen-mapselect" class="screen">
+  <div class="mapselect-bg">
+    <h2 class="screen-title">SELECT STAGE</h2>
+    <div class="map-grid" id="mapGrid"></div>
+    <div class="map-preview-name" id="mapPreviewName">---</div>
+    <div class="mapselect-footer">
+      <button class="nav-btn" id="btnMapBack">← BACK</button>
+      <button class="nav-btn primary" id="btnFight" disabled>FIGHT!</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="screen-game" class="screen">
+  <!-- HUD -->
+  <div class="hud">
+    <!-- P1 HUD -->
+    <div class="hud-player hud-p1">
+      <div class="hud-name p1-color" id="hudP1Name">NARUTO</div>
+      <div class="health-bar-wrap">
+        <div class="health-bar" id="healthBarP1">
+          <div class="health-fill p1-health" id="healthFillP1"></div>
+          <div class="health-ghost" id="healthGhostP1"></div>
+        </div>
+      </div>
+      <div class="chakra-bar-wrap">
+        <div class="chakra-bar" id="chakraBarP1">
+          <div class="chakra-fill p1-chakra" id="chakraFillP1"></div>
+        </div>
+        <span class="chakra-label">CHAKRA</span>
+      </div>
+    </div>
+
+    <!-- Center HUD -->
+    <div class="hud-center">
+      <div class="round-counter" id="roundCounter">
+        <div class="round-pip" id="pip1-1"></div>
+        <div class="round-pip" id="pip1-2"></div>
+        <span class="round-label">RD<span id="roundNum">1</span></span>
+        <div class="round-pip" id="pip2-1"></div>
+        <div class="round-pip" id="pip2-2"></div>
+      </div>
+      <div class="timer" id="timer">99</div>
+    </div>
+
+    <!-- P2 HUD -->
+    <div class="hud-player hud-p2">
+      <div class="hud-name p2-color" id="hudP2Name">SASUKE</div>
+      <div class="health-bar-wrap">
+        <div class="health-bar" id="healthBarP2">
+          <div class="health-fill p2-health" id="healthFillP2"></div>
+          <div class="health-ghost" id="healthGhostP2"></div>
+        </div>
+      </div>
+      <div class="chakra-bar-wrap">
+        <span class="chakra-label">CHAKRA</span>
+        <div class="chakra-bar" id="chakraBarP2">
+          <div class="chakra-fill p2-chakra" id="chakraFillP2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Round Announce Overlay -->
+  <div class="round-announce" id="roundAnnounce">
+    <div class="announce-text" id="announceText">ROUND 1</div>
+    <div class="announce-sub" id="announceSub">FIGHT!</div>
+  </div>
+
+  <!-- Move List Overlay -->
+  <div class="movelist-overlay" id="movelistOverlay">
+    <div class="movelist-content" id="movelistContent"></div>
+  </div>
+  <button class="movelist-toggle" id="movelistToggle" title="Move List">📋</button>
+
+  <!-- Pause Button -->
+  <button class="pause-btn" id="pauseBtn">⏸</button>
+</div>
+
+<!-- ROUND WIN / KO SCREEN (overlay) -->
+<div id="screen-roundwin" class="screen overlay-screen">
+  <div class="ko-display">
+    <div class="ko-text" id="koText">K.O.</div>
+    <div class="winner-text" id="winnerText">PLAYER 1 WINS!</div>
+    <div class="round-score" id="roundScore"></div>
+  </div>
+</div>
+
+<!-- MATCH WIN SCREEN -->
+<div id="screen-matchwin" class="screen">
+  <div class="matchwin-bg">
+    <div class="matchwin-content">
+      <div class="victory-text">VICTORY!</div>
+      <div class="victor-name" id="victorName">PLAYER 1</div>
+      <div class="victor-portrait" id="victorPortrait">
+        <canvas id="victorCanvas" width="200" height="280"></canvas>
+      </div>
+      <div class="matchwin-btns">
+        <button class="nav-btn primary" id="btnRematch">REMATCH</button>
+        <button class="nav-btn" id="btnMenuFromWin">MAIN MENU</button>
+      </div>
+    </div>
+    <div class="victory-particles" id="victoryParticles"></div>
+  </div>
+</div>
+
+<!-- PAUSE MENU -->
+<div id="screen-pause" class="screen overlay-screen">
+  <div class="overlay-panel compact">
+    <h2 class="panel-title">PAUSED</h2>
+    <button class="nav-btn primary" id="btnResume">RESUME</button>
+    <button class="nav-btn" id="btnRestartMatch">RESTART</button>
+    <button class="nav-btn" id="btnMenuFromPause">MAIN MENU</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "app_name": "Anime_Fighter",
+  "improvement_id": "20260531T113415_8e30f1",
+  "status": "complete",
+  "improvement_request": "The game doesn\u2019t start, selecting buttons in the menu does nothinf",
+  "current_stage": "browser",
+  "completed_stages": [
+    "analyze",
+    "plan",
+    "update_html",
+    "update_css",
+    "update_js",
+    "update_readme",
+    "validate",
+    "browser"
+  ],
+  "files_changed": [
+    "app.js"
+  ],
+  "partial_files": [],
+  "backup_files": [
+    "/Users/agent/claude-agents/projects/Anime_Fighter/.improve_state/backups/20260531T113415_8e30f1/index.html",
+    "/Users/agent/claude-agents/projects/Anime_Fighter/.improve_state/backups/20260531T113415_8e30f1/style.css",
+    "/Users/agent/claude-agents/projects/Anime_Fighter/.improve_state/backups/20260531T113415_8e30f1/app.js",
+    "/Users/agent/claude-agents/projects/Anime_Fighter/.improve_state/backups/20260531T113415_8e30f1/README.md"
+  ],
+  "retry_count_by_stage": {},
+  "last_error": null,
+  "last_updated": "2026-05-31T11:40:23Z",
+  "can_resume": true
+}
